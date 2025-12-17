@@ -91,6 +91,8 @@ export default function ExpenseTracker() {
   const [filterFromDate, setFilterFromDate] = useState("");
   const [filterToDate, setFilterToDate] = useState("");
 
+  const [budgetInputs, setBudgetInputs] = useState<Record<string, string>>({});
+
   const showToast = useCallback((message: string, type: ToastType) => {
     setToast({ message, type });
   }, []);
@@ -118,14 +120,25 @@ export default function ExpenseTracker() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (dashboard?.summary) {
+      const formatted: Record<string, string> = {};
+      CATEGORIES.forEach((cat) => {
+        const budg = dashboard.summary?.[cat]?.budget || 0;
+        formatted[cat] = budg > 0 ? budg.toLocaleString("vi-VN") : "";
+      });
+      setBudgetInputs(formatted);
+    }
+  }, [dashboard]);
+
   const loadMonthData = async (month: string) => {
     try {
-      showToast("Đang tải dữ liệu tháng...", "info");
+      showToast("Bé ơi đợi xíu...", "info");
       const data = await getDashboardData(month);
       setDashboard(data);
-      showToast("Đã tải xong!", "success");
+      showToast("Xong rồi bé!", "success");
     } catch {
-      showToast("Lỗi khi tải dữ liệu", "error");
+      showToast("Lỗi rồi bé yêu nhắn tin anh", "error");
     }
   };
 
@@ -135,12 +148,12 @@ export default function ExpenseTracker() {
       return;
     }
     try {
-      showToast("Đang so sánh...", "info");
+      showToast("Anh đang so sánh nha...", "info");
       const data = await getComparisonData(mainMonth, compareMonth);
       setComparison(data);
-      showToast("Đã so sánh xong!", "success");
+      showToast("Xong rồi nè bé!", "success");
     } catch {
-      showToast("Lỗi khi so sánh", "error");
+      showToast("Lỗi rồi bé yêu nhắn tin anh", "error");
     }
   };
 
@@ -156,9 +169,9 @@ export default function ExpenseTracker() {
       setExpenses(result.expenses || []);
       setFilteredExpenses(result.expenses || []);
       setShowAddModal(false);
-      showToast("Đã thêm thành công!", "success");
+      showToast("Anh thêm rồi bé yêu!", "success");
     } catch {
-      showToast("Lỗi khi thêm", "error");
+      showToast("Lỗi rồi bé yêu nhắn tin anh", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -178,9 +191,9 @@ export default function ExpenseTracker() {
       setFilteredExpenses(result.expenses || []);
       setShowAddModal(false);
       setEditingExpense(null);
-      showToast("Đã cập nhật thành công!", "success");
+      showToast("Anh cập nhật rồi nha!", "success");
     } catch {
-      showToast("Lỗi khi cập nhật", "error");
+      showToast("Lỗi rồi bé yêu nhắn tin anh", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -196,28 +209,28 @@ export default function ExpenseTracker() {
       setExpenses(result.expenses || []);
       setFilteredExpenses(result.expenses || []);
       setDeleteId(null);
-      showToast("Đã xóa thành công!", "success");
+      showToast("Xóa rồi nha bé!", "success");
     } catch {
-      showToast("Lỗi khi xóa", "error");
+      showToast("Lỗi rồi bé yêu nhắn tin anh", "error");
     }
   };
 
   const handleSaveBudgets = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
     const budgets: Record<string, number> = {};
     CATEGORIES.forEach((cat) => {
-      budgets[cat] =
-        Number.parseInt(formData.get(`budget_${cat}`) as string) || 0;
+      const formatted = budgetInputs[cat] || "";
+      const raw = formatted ? Number(formatted.replace(/\./g, "")) : 0;
+      budgets[cat] = raw;
     });
     try {
       setIsSubmitting(true);
-      showToast("Đang lưu ngân sách...", "info");
+      showToast("Lưu ngân sách rồi á bé...", "info");
       await setBudgets(budgets);
-      showToast("Đã lưu ngân sách thành công!", "success");
+      showToast("Lưu xong rồi bé yêu!", "success");
       loadData();
     } catch {
-      showToast("Lỗi khi lưu ngân sách", "error");
+      showToast("Lỗi rồi bé yêu nhắn tin anh", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -369,7 +382,6 @@ export default function ExpenseTracker() {
               </div>
             </div>
 
-            {/* Budget Cards */}
             <div className="grid grid-cols-2 gap-3">
               {dashboard.summary &&
                 Object.entries(dashboard.summary).map(([cat, info]) => {
@@ -419,7 +431,6 @@ export default function ExpenseTracker() {
                 })}
             </div>
 
-            {/* Pie Chart */}
             <div className="bg-white rounded-3xl shadow-soft p-5 border border-gray-100 animate-in slide-in-from-bottom duration-300">
               <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
@@ -458,7 +469,6 @@ export default function ExpenseTracker() {
               </button>
             </div>
 
-            {/* Filter Form */}
             {showFilter && (
               <div className="bg-white rounded-2xl shadow-soft p-4 border border-gray-100 space-y-4 animate-in slide-in-from-top duration-200">
                 <div className="relative">
@@ -534,12 +544,11 @@ export default function ExpenseTracker() {
               <span className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-sm font-semibold">
                 {filteredExpenses.length} giao dịch
               </span>
-              <span className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-sm font-semibold">
+              <span className="bg-emerald-100 text-emerald-700 px-4 py, py-2 rounded-full text-sm font-semibold">
                 {formatMoneyFull(totalFiltered)}
               </span>
             </div>
 
-            {/* Expense List */}
             {filteredExpenses.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-5">
@@ -559,13 +568,13 @@ export default function ExpenseTracker() {
                     (a, b) =>
                       new Date(b.date).getTime() - new Date(a.date).getTime()
                   )
-                  .map((exp, index) => {
+                  .map((exp) => {
                     const icon = CATEGORY_ICONS[exp.category] || "📦";
                     const color = CATEGORY_COLORS[exp.category] || "#6b7280";
 
                     return (
                       <div
-                        key={index}
+                        key={exp.id}
                         className="bg-white rounded-2xl shadow-soft p-4 border border-gray-100 animate-in fade-in duration-200"
                       >
                         <div className="flex items-start gap-3">
@@ -614,10 +623,9 @@ export default function ExpenseTracker() {
           </div>
         )}
 
-        {/* Tab: So sánh - Đã fix layout để không dư khoảng trống lớn ở dưới (đặc biệt trên mobile) */}
+        {/* Tab: So sánh */}
         {activeTab === "compare" && (
           <div className="flex flex-col flex-1">
-            {/* Phần chọn tháng - cố định chiều cao */}
             <div className="shrink-0 px-4 pt-5 pb-8">
               <div className="bg-white rounded-2xl shadow-soft p-4 border border-gray-100">
                 <div className="grid grid-cols-2 gap-3">
@@ -656,14 +664,12 @@ export default function ExpenseTracker() {
               </div>
             </div>
 
-            {/* Phần nội dung chính - chiếm toàn bộ không gian còn lại */}
             {comparison ? (
               <div className="px-4 space-y-5 pb-10 animate-in slide-in-from-bottom duration-300">
                 <p className="text-center text-lg font-bold text-gray-800">
                   {comparison.mainMonth} vs {comparison.compareMonth}
                 </p>
 
-                {/* Tổng thay đổi */}
                 <div
                   className={`${
                     comparison.totalDiff > 0
@@ -702,7 +708,6 @@ export default function ExpenseTracker() {
                   </p>
                 </div>
 
-                {/* Category diff */}
                 <div className="grid grid-cols-2 gap-3">
                   {CATEGORIES.map((cat) => {
                     const data = comparison.diff?.[cat] || {
@@ -744,7 +749,6 @@ export default function ExpenseTracker() {
                   })}
                 </div>
 
-                {/* Pie charts */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white rounded-2xl shadow-soft p-4 border border-gray-100">
                     <h3 className="text-sm font-bold text-gray-800 mb-3 text-center">
@@ -803,7 +807,6 @@ export default function ExpenseTracker() {
                 </div>
               </div>
             ) : (
-              /* Placeholder khi chưa có dữ liệu so sánh - chiếm full chiều cao còn lại, căn giữa đẹp trên mobile */
               <div className="flex-1 flex items-center justify-center px-8">
                 <div className="text-center">
                   <BarChart3 className="w-32 h-32 text-gray-200 mx-auto mb-8" />
@@ -840,7 +843,16 @@ export default function ExpenseTracker() {
               <form onSubmit={handleSaveBudgets} className="space-y-4">
                 {CATEGORIES.map((cat) => {
                   const icon = CATEGORY_ICONS[cat];
-                  const budget = dashboard?.summary?.[cat]?.budget || 0;
+
+                  const handleBudgetChange = (
+                    e: React.ChangeEvent<HTMLInputElement>
+                  ) => {
+                    const input = e.target.value.replace(/\D/g, "");
+                    const formatted = input
+                      ? Number(input).toLocaleString("vi-VN")
+                      : "";
+                    setBudgetInputs((prev) => ({ ...prev, [cat]: formatted }));
+                  };
 
                   return (
                     <div
@@ -852,12 +864,12 @@ export default function ExpenseTracker() {
                         {cat}
                       </span>
                       <input
-                        type="number"
-                        name={`budget_${cat}`}
-                        defaultValue={budget || undefined}
-                        placeholder="0"
+                        type="text"
                         inputMode="numeric"
-                        className="w-32 border border-gray-200 rounded-xl px-3 py-3 text-base text-right font-medium"
+                        value={budgetInputs[cat] || ""}
+                        onChange={handleBudgetChange}
+                        placeholder="0"
+                        className="w-32 border border-gray-200 rounded-xl px-3 py-3 text-base text-right font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                       />
                     </div>
                   );

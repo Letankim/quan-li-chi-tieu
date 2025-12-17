@@ -1,4 +1,6 @@
-"use client"
+"use client";
+
+import { RotateCw } from "lucide-react";
 
 export function LoadingOverlay() {
   return (
@@ -11,11 +13,13 @@ export function LoadingOverlay() {
             <span className="text-3xl">💰</span>
           </div>
         </div>
-        <p className="text-2xl text-gray-700 mt-6 font-semibold">Đang tải dữ liệu...</p>
-        <p className="text-lg text-gray-400 mt-2">Vui lòng đợi</p>
+        <p className="text-2xl text-gray-700 mt-6 font-semibold">
+          Đợi xíu bé ơi...
+        </p>
+        <p className="text-lg text-gray-400 mt-2">Đợi anh xíu nha</p>
       </div>
     </div>
-  )
+  );
 }
 
 export function ErrorMessage({ onRetry }: { onRetry: () => void }) {
@@ -27,21 +31,22 @@ export function ErrorMessage({ onRetry }: { onRetry: () => void }) {
         </div>
         <p className="text-2xl font-bold text-gray-800 mb-3">Có lỗi xảy ra</p>
         <p className="text-gray-500 mb-8 text-lg">
-          Không thể tải dữ liệu.
+          Lỗi rồi bé yêu ơi.
           <br />
-          Kiểm tra kết nối mạng và thử lại.
+          Nhắn tin anh liền đi bé.
         </p>
         <button
           onClick={onRetry}
-          className="gradient-primary text-white rounded-2xl px-12 py-5 text-xl font-semibold shadow-xl btn-bounce"
+          className="gradient-primary text-white rounded-2xl px-12 py-5 text-xl font-semibold shadow-xl btn-bounce flex items-center gap-3"
         >
-          🔄 Thử lại
+          <RotateCw className="w-6 h-6" />
+          Thử lại
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`shimmer-bg rounded-2xl ${className}`}></div>
+  return <div className={`shimmer-bg rounded-2xl ${className}`}></div>;
 }

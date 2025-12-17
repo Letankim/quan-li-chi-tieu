@@ -22,7 +22,7 @@ export function ExpenseForm({
   isLoading,
 }: ExpenseFormProps) {
   const [category, setCategory] = useState(initialData?.category || "");
-  const [amount, setAmount] = useState(initialData?.amount?.toString() || "");
+  const [formattedAmount, setFormattedAmount] = useState("");
   const [description, setDescription] = useState(
     initialData?.description || ""
   );
@@ -30,24 +30,48 @@ export function ExpenseForm({
   useEffect(() => {
     if (initialData) {
       setCategory(initialData.category);
-      setAmount(initialData.amount.toString());
-      setDescription(initialData.description);
+      setFormattedAmount(
+        initialData.amount > 0 ? initialData.amount.toLocaleString("vi-VN") : ""
+      );
+      setDescription(initialData.description || "");
     } else {
       setCategory("");
-      setAmount("");
+      setFormattedAmount("");
       setDescription("");
     }
   }, [initialData]);
 
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    const digitsOnly = input.replace(/\D/g, "");
+    const formatted = digitsOnly
+      ? Number(digitsOnly).toLocaleString("vi-VN")
+      : "";
+    setFormattedAmount(formatted);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || Number(amount) <= 0 || !category) return;
+
+    const rawAmount = formattedAmount
+      ? Number(formattedAmount.replace(/\./g, ""))
+      : 0;
+
+    if (!rawAmount || rawAmount <= 0 || !category) {
+      return;
+    }
+
     onSubmit({
       category,
-      amount: Number(amount),
+      amount: rawAmount,
       description,
     });
   };
+
+  const rawAmount = formattedAmount
+    ? Number(formattedAmount.replace(/\./g, ""))
+    : 0;
+  const isSubmitDisabled = isLoading || rawAmount <= 0 || !category;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -56,13 +80,13 @@ export function ExpenseForm({
           Số tiền (VND)
         </label>
         <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          required
-          placeholder="Nhập số tiền"
+          type="text" 
           inputMode="numeric"
-          className="w-full border border-gray-200 rounded-2xl px-5 py-4 text-xl font-semibold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+          value={formattedAmount}
+          onChange={handleAmountChange}
+          required
+          placeholder="0"
+          className="w-full border border-gray-200 rounded-2xl px-5 py-4 text-xl font-semibold text-right focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
         />
       </div>
 
@@ -93,7 +117,7 @@ export function ExpenseForm({
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Mô tả chi tiêu"
+          placeholder="Mô tả chi tiêu (tùy chọn)"
           className="w-full border border-gray-200 rounded-2xl px-5 py-4 text-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
         />
       </div>
@@ -109,7 +133,7 @@ export function ExpenseForm({
         </button>
         <button
           type="submit"
-          disabled={isLoading || !amount || !category}
+          disabled={isSubmitDisabled}
           className="flex-1 gradient-primary text-white rounded-2xl py-4 font-semibold text-lg shadow-lg btn-bounce disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {isLoading ? (

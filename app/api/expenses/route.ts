@@ -1,73 +1,144 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 
-const GAS_URL = process.env.GAS_URL || "https://script.google.com/macros/s/AKfycbwDbn2BpKTxHN5kgRaZcaeChU5QQAqtZvUrBVIOWxz2/dev"
+const GAS_URL =
+  process.env.GAS_URL ??
+  "https://3docorp.id.vn/api.php"
 
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const action = searchParams.get("action") || "getAllData"
-  const month = searchParams.get("month") || ""
-  const compareMonth = searchParams.get("compareMonth") || ""
+const TIMEOUT_MS = 8000 // 8 giây
+
+/* ================== HELPER ================== */
+
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeout = TIMEOUT_MS
+) {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeout)
 
   try {
-    const params = new URLSearchParams({ action })
-    if (month) params.append("month", month)
-    if (compareMonth) params.append("compareMonth", compareMonth)
-
-    const response = await fetch(`${GAS_URL}?${params.toString()}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      cache: "no-store", // cực kỳ quan trọng
     })
-
-    const text = await response.text()
-    let data
-    try {
-      data = JSON.parse(text)
-    } catch {
-      const jsonMatch = text.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        data = JSON.parse(jsonMatch[0])
-      } else {
-        throw new Error("Invalid response format")
-      }
-    }
-
-    return NextResponse.json(data)
-  } catch (error) {
-    console.error("API Error:", error)
-    return NextResponse.json({ error: "Failed to fetch data" }, { status: 500 })
+    return res
+  } finally {
+    clearTimeout(id)
   }
 }
+
+function safeParseJSON(text: string) {
+  try {
+    return JSON.parse(text)
+  } catch {
+    // GAS hay trả log + JSON → cắt phần JSON
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error("Response is not JSON")
+    return JSON.parse(match[0])
+  }
+}
+
+/* ================== GET ================== */
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = request.nextUrl
+
+  const action = searchParams.get("action") ?? "getAllData"
+  const month = searchParams.get("month") ?? ""
+  const compareMonth = searchParams.get("compareMonth") ?? ""
+
+  const params = new URLSearchParams({ action })
+  if (month) params.append("month", month)
+  if (compareMonth) params.append("compareMonth", compareMonth)
+
+  const url = `${GAS_URL}?${params.toString()}`
+
+  try {
+    const response = await fetchWithTimeout(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    })
+
+    if (!response.ok) {
+      const errText = await response.text()
+      console.error("GAS Error:", errText)
+
+      return NextResponse.json(
+        {
+          error: "Google Apps Script error",
+          status: response.status,
+        },
+        { status: 502 }
+      )
+    }
+
+    const text = await response.text()
+    const data = safeParseJSON(text)
+
+    return NextResponse.json(data, { status: 200 })
+  } catch (error: any) {
+    console.error("GET API Error:", error)
+
+    if (error.name === "AbortError") {
+      return NextResponse.json(
+        { error: "Request timeout (GAS too slow)" },
+        { status: 504 }
+      )
+    }
+
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
+  }
+}
+
+/* ================== POST ================== */
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    const response = await fetch(GAS_URL, {
+    const response = await fetchWithTimeout(GAS_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify(body),
     })
 
-    const text = await response.text()
-    let data
-    try {
-      data = JSON.parse(text)
-    } catch {
-      const jsonMatch = text.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        data = JSON.parse(jsonMatch[0])
-      } else {
-        throw new Error("Invalid response format")
-      }
+    if (!response.ok) {
+      const errText = await response.text()
+      console.error("GAS POST Error:", errText)
+
+      return NextResponse.json(
+        {
+          error: "Google Apps Script error",
+          status: response.status,
+        },
+        { status: 502 }
+      )
     }
 
-    return NextResponse.json(data)
-  } catch (error) {
-    console.error("API Error:", error)
-    return NextResponse.json({ error: "Failed to process request" }, { status: 500 })
+    const text = await response.text()
+    const data = safeParseJSON(text)
+
+    return NextResponse.json(data, { status: 200 })
+  } catch (error: any) {
+    console.error("POST API Error:", error)
+
+    if (error.name === "AbortError") {
+      return NextResponse.json(
+        { error: "Request timeout (GAS too slow)" },
+        { status: 504 }
+      )
+    }
+
+    return NextResponse.json(
+      { error: "Failed to process request" },
+      { status: 500 }
+    )
   }
 }
