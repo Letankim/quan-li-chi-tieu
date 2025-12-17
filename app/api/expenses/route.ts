@@ -4,9 +4,8 @@ const GAS_URL =
   process.env.GAS_URL ??
   "https://3docorp.id.vn/api.php"
 
-const TIMEOUT_MS = 8000 // 8 giây
+const TIMEOUT_MS = 8000 
 
-/* ================== HELPER ================== */
 
 async function fetchWithTimeout(
   url: string,
@@ -20,7 +19,7 @@ async function fetchWithTimeout(
     const res = await fetch(url, {
       ...options,
       signal: controller.signal,
-      cache: "no-store", // cực kỳ quan trọng
+      cache: "no-store", 
     })
     return res
   } finally {
@@ -32,14 +31,11 @@ function safeParseJSON(text: string) {
   try {
     return JSON.parse(text)
   } catch {
-    // GAS hay trả log + JSON → cắt phần JSON
     const match = text.match(/\{[\s\S]*\}/)
     if (!match) throw new Error("Response is not JSON")
     return JSON.parse(match[0])
   }
 }
-
-/* ================== GET ================== */
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
@@ -62,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       const errText = await response.text()
-      console.error("GAS Error:", errText)
+      console.error("GAS Error:", response)
 
       return NextResponse.json(
         {
@@ -94,7 +90,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/* ================== POST ================== */
 
 export async function POST(request: NextRequest) {
   try {

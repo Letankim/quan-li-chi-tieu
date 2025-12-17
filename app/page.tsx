@@ -317,6 +317,14 @@ export default function ExpenseTracker() {
 
   const totalFiltered = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
+  const handleRefresh = () => {
+    if (activeTab === "overview") {
+      loadMonthData(selectedMonth);
+    } else {
+      loadData();
+    }
+  };
+
   return (
     <div className="w-full min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       {toast && (
@@ -334,7 +342,7 @@ export default function ExpenseTracker() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-800">
-              Yến GEM Dễ Thương
+              Yến Gem dễ thương
             </h1>
             <p className="text-sm text-gray-400">Quản lý cho bé</p>
           </div>
@@ -346,6 +354,14 @@ export default function ExpenseTracker() {
           >
             <Plus className="w-6 h-6" />
           </button>
+          {activeTab === "overview" && (
+            <button
+              onClick={handleRefresh}
+              className="w-12 h-12 rounded-2xl bg-indigo-100 active:bg-indigo-200 flex items-center justify-center text-indigo-600 shadow-lg btn-bounce"
+            >
+              <RefreshCw className="w-6 h-6" />
+            </button>
+          )}
         </div>
       </header>
 
@@ -546,7 +562,7 @@ export default function ExpenseTracker() {
               <span className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-sm font-semibold">
                 {filteredExpenses.length} giao dịch
               </span>
-              <span className="bg-emerald-100 text-emerald-700 px-4 py, py-2 rounded-full text-sm font-semibold">
+              <span className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-sm font-semibold">
                 {formatMoneyFull(totalFiltered)}
               </span>
             </div>
@@ -588,7 +604,7 @@ export default function ExpenseTracker() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-gray-800 text-base truncate">
-                              {exp.description || "Không có mô tả"}
+                              {exp.description || "--"}
                             </p>
                             <p className="text-sm text-gray-500 mt-1">
                               {exp.category}
