@@ -333,8 +333,10 @@ export default function ExpenseTracker() {
             <Wallet className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-800">Chi Tiêu</h1>
-            <p className="text-sm text-gray-400">Quản lý thông minh</p>
+            <h1 className="text-xl font-bold text-gray-800">
+              Yến GEM Dễ Thương
+            </h1>
+            <p className="text-sm text-gray-400">Quản lý cho bé</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -378,7 +380,7 @@ export default function ExpenseTracker() {
               </p>
               <div className="mt-4 flex items-center justify-center gap-2 text-white/70 text-sm">
                 <TrendingUp className="w-5 h-5" />
-                <span>Cập nhật realtime</span>
+                <span>Nay chi tiêu gì cục vàng</span>
               </div>
             </div>
 
