@@ -31,7 +31,7 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#2563eb" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-title" content="Giả lập SH" />
+        <meta name="apple-mobile-web-app-title" content="QL Chi Tiêu" />
         <meta
           name="apple-mobile-web-app-status-bar-style"
           content="black-translucent"
