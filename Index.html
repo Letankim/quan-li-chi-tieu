@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <title>Quản Lý Chi Tiêu</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#6366f1',
+              'primary-light': '#818cf8',
+              'primary-dark': '#4f46e5',
+              secondary: '#f472b6',
+              success: '#10b981',
+              warning: '#f59e0b',
+              danger: '#ef4444',
+              surface: '#f8fafc',
+              'surface-alt': '#f1f5f9'
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif']
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+      
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      
+      html {
+        height: 100%;
+        overflow: hidden;
+        font-size: 18px;
+      }
+      
+      body {
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes scaleIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+      }
+      
+      .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+      .animate-slide-up { animation: slideUp 0.4s ease-out; }
+      .animate-slide-down { animation: slideDown 0.3s ease-out; }
+      .animate-scale-in { animation: scaleIn 0.25s ease-out; }
+      
+      .shimmer-bg {
+        background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+      }
+      
+      .gradient-primary {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+      }
+      
+      .gradient-success {
+        background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+      }
+      
+      .gradient-danger {
+        background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+      }
+      
+      .gradient-warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+      }
+      
+      .shadow-soft {
+        box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.1);
+      }
+      
+      .btn-bounce:active {
+        transform: scale(0.96);
+      }
+      
+      input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: #6366f1 !important;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+      }
+      
+      .safe-bottom {
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+      }
+      
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 24px;
+      }
+      
+      .modal-content {
+        background: white;
+        border-radius: 28px;
+        width: 100%;
+        max-width: 400px;
+        max-height: 90vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      .toast {
+        animation: slideDown 0.3s ease-out;
+      }
+      
+      .toast.hide {
+        animation: fadeOut 0.3s ease-out forwards;
+      }
+      
+      @keyframes fadeOut {
+        to { opacity: 0; transform: translateY(-10px); }
+      }
+    </style>
+  </head>
+  <body class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 font-sans">
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-white/95 backdrop-blur-sm flex items-center justify-center z-[10000]">
+      <div class="text-center animate-fade-in">
+        <div class="relative w-24 h-24 mx-auto">
+          <div class="w-24 h-24 rounded-full border-4 border-indigo-100"></div>
+          <div class="w-24 h-24 rounded-full border-4 border-transparent border-t-primary absolute top-0 left-0 animate-spin"></div>
+        </div>
+        <p class="text-2xl text-gray-700 mt-6 font-semibold">Đang tải dữ liệu...</p>
+        <p class="text-lg text-gray-400 mt-2">Vui lòng đợi</p>
+      </div>
+    </div>
+
+    <!-- Error Message -->
+    <div id="errorMessage" class="hidden fixed inset-0 bg-white flex items-center justify-center z-[9998] p-8">
+      <div class="text-center animate-scale-in">
+        <div class="w-28 h-28 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
+          <i class='bx bx-wifi-off text-6xl text-danger'></i>
+        </div>
+        <p class="text-2xl font-bold text-gray-800 mb-3">Có lỗi xảy ra</p>
+        <p class="text-gray-500 mb-8 text-lg">Không thể tải dữ liệu.<br>Kiểm tra kết nối mạng và thử lại.</p>
+        <button onclick="loadAllData()" class="gradient-primary text-white rounded-2xl px-12 py-5 text-xl font-semibold shadow-xl btn-bounce">
+          <i class='bx bx-refresh mr-2'></i>Thử lại
+        </button>
+      </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed top-4 left-4 right-4 z-[10001] space-y-3"></div>
+
+    <!-- Main Container -->
+    <div class="w-full min-h-screen pb-28">
+      
+      <!-- Header với nút Add -->
+      <header class="px-5 py-4 border-b border-gray-100/50 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur-xl z-40">
+        <div class="flex items-center gap-4">
+          <div class="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-lg">
+            <i class='bx bx-wallet text-3xl text-white'></i>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold text-gray-800">Chi Tiêu</h1>
+            <p class="text-base text-gray-400">Quản lý thông minh</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <!-- Nút Add fixed ở header -->
+          <button onclick="openAddModal()" class="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center text-white shadow-lg btn-bounce">
+            <i class='bx bx-plus text-3xl'></i>
+          </button>
+          <button onclick="loadAllData()" class="w-14 h-14 rounded-2xl bg-gray-100 active:bg-gray-200 flex items-center justify-center btn-bounce">
+            <i class='bx bx-refresh text-3xl text-gray-600'></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Month Selector -->
+      <div id="overviewMonthSelector" class="px-5 pt-4">
+        <div class="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-soft border border-gray-100">
+          <i class='bx bx-calendar text-3xl text-primary'></i>
+          <input id="overviewMonthInput" type="month" class="flex-1 bg-transparent border-none text-gray-700 font-semibold text-xl" onchange="loadOverviewMonth()">
+        </div>
+      </div>
+
+      <!-- Tab: Tổng quan -->
+      <div id="tab-overview" data-tab class="px-5 py-5 space-y-5">
+        
+        <!-- Total Card -->
+        <div class="gradient-primary rounded-3xl shadow-xl p-8 text-white text-center relative overflow-hidden animate-slide-up">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+          <div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+          <p class="text-white/80 text-lg font-medium uppercase tracking-wider">Tổng chi tháng này</p>
+          <p id="monthlyTotal" class="text-4xl font-extrabold mt-3">0 VND</p>
+          <div class="mt-4 flex items-center justify-center gap-2 text-white/70 text-base">
+            <i class='bx bx-trending-up'></i>
+            <span>Cập nhật realtime</span>
+          </div>
+        </div>
+
+        <!-- Budget Cards Skeleton -->
+        <div id="budgetCardsSkeleton" class="grid grid-cols-2 gap-4">
+          <div class="shimmer-bg rounded-2xl h-40"></div>
+          <div class="shimmer-bg rounded-2xl h-40"></div>
+          <div class="shimmer-bg rounded-2xl h-40"></div>
+          <div class="shimmer-bg rounded-2xl h-40"></div>
+        </div>
+
+        <!-- Budget Cards -->
+        <div id="budgetCards" class="grid grid-cols-2 gap-4 hidden"></div>
+
+        <!-- Pie Chart - Phân bố chi tiêu -->
+        <div class="bg-white rounded-3xl shadow-soft p-6 border border-gray-100 animate-slide-up">
+          <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <i class='bx bx-pie-chart-alt-2 text-2xl text-primary'></i>
+            </div>
+            Phân bố chi tiêu
+          </h2>
+          <div id="chartSkeleton" class="h-64 shimmer-bg rounded-2xl"></div>
+          <canvas id="pieChart" class="hidden" style="max-height: 260px;"></canvas>
+          <div id="noChartData" class="text-center py-14 hidden">
+            <div class="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+              <i class='bx bx-chart text-5xl text-gray-400'></i>
+            </div>
+            <p class="text-gray-500 text-xl">Chưa có dữ liệu</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Lịch sử -->
+      <div id="tab-history" data-tab class="hidden px-5 py-5 space-y-5">
+        
+        <div class="flex justify-between items-center">
+          <h2 class="text-2xl font-bold text-gray-800">Lịch sử chi tiêu</h2>
+          <button onclick="toggleFilter()" class="w-14 h-14 rounded-2xl bg-primary/10 active:bg-primary/20 flex items-center justify-center btn-bounce">
+            <i class='bx bx-filter-alt text-3xl text-primary'></i>
+          </button>
+        </div>
+
+        <!-- Filter Form -->
+        <div id="filterForm" class="hidden bg-white rounded-2xl shadow-soft p-5 border border-gray-100 space-y-4 animate-slide-down">
+          <div class="relative">
+            <i class='bx bx-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-2xl'></i>
+            <input id="searchInput" type="text" placeholder="Tìm kiếm..." class="w-full border border-gray-200 rounded-2xl pl-14 pr-4 py-4 text-lg">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-base text-gray-600 mb-2 block font-medium">Từ ngày</label>
+              <input id="fromDate" type="date" class="w-full border border-gray-200 rounded-2xl px-4 py-4 text-lg">
+            </div>
+            <div>
+              <label class="text-base text-gray-600 mb-2 block font-medium">Đến ngày</label>
+              <input id="toDate" type="date" class="w-full border border-gray-200 rounded-2xl px-4 py-4 text-lg">
+            </div>
+          </div>
+          <div>
+            <label class="text-base text-gray-600 mb-2 block font-medium">Danh mục</label>
+            <select id="categoryFilter" class="w-full border border-gray-200 rounded-2xl px-4 py-4 text-lg appearance-none bg-white">
+              <option value="">Tất cả</option>
+              <option value="Ăn uống">Ăn uống</option>
+              <option value="Di chuyển">Di chuyển</option>
+              <option value="Giải trí">Giải trí</option>
+              <option value="Mua sắm">Mua sắm</option>
+              <option value="Hóa đơn">Hóa đơn</option>
+              <option value="Y tế">Y tế</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </div>
+          <div class="flex gap-3 pt-2">
+            <button onclick="clearFilters()" class="flex-1 bg-gray-100 text-gray-700 rounded-2xl py-4 font-semibold text-lg active:bg-gray-200 btn-bounce">
+              Xóa lọc
+            </button>
+            <button onclick="applyFilters()" class="flex-1 gradient-primary text-white rounded-2xl py-4 font-semibold text-lg shadow-lg btn-bounce">
+              Áp dụng
+            </button>
+          </div>
+        </div>
+
+        <!-- History Summary Tags -->
+        <div id="historySummary" class="flex flex-wrap gap-2"></div>
+
+        <!-- History List -->
+        <div id="historyList">
+          <div id="tableSkeleton" class="space-y-4">
+            <div class="shimmer-bg rounded-2xl h-28"></div>
+            <div class="shimmer-bg rounded-2xl h-28"></div>
+            <div class="shimmer-bg rounded-2xl h-28"></div>
+          </div>
+          <div id="expensesList" class="space-y-4 hidden"></div>
+          <div id="emptyMessage" class="text-center py-16 hidden">
+            <div class="w-28 h-28 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-5">
+              <i class='bx bx-receipt text-6xl text-gray-400'></i>
+            </div>
+            <p class="text-gray-600 text-2xl font-medium">Không có chi tiêu nào</p>
+            <p class="text-gray-400 text-lg mt-2">Thêm chi tiêu mới để bắt đầu!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: So sánh -->
+      <div id="tab-compare" data-tab class="hidden px-5 py-5 space-y-5">
+        
+        <div class="bg-white rounded-2xl shadow-soft p-5 border border-gray-100">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-base font-semibold text-gray-700 mb-2 block flex items-center gap-2">
+                <span class="w-4 h-4 rounded-full gradient-primary"></span>
+                Tháng chính
+              </label>
+              <input id="compareMainMonth" type="month" class="w-full border border-gray-200 rounded-2xl px-4 py-4 text-lg">
+            </div>
+            <div>
+              <label class="text-base font-semibold text-gray-700 mb-2 block flex items-center gap-2">
+                <span class="w-4 h-4 rounded-full bg-gray-400"></span>
+                Tháng so sánh
+              </label>
+              <input id="compareVsMonth" type="month" class="w-full border border-gray-200 rounded-2xl px-4 py-4 text-lg">
+            </div>
+          </div>
+          <button onclick="loadComparison()" class="mt-4 w-full gradient-primary text-white rounded-2xl py-4 font-semibold text-lg shadow-lg btn-bounce">
+            <i class='bx bx-git-compare mr-2'></i>So sánh
+          </button>
+        </div>
+
+        <div id="compareContent" class="hidden space-y-5 animate-slide-up">
+          <p id="compareTitle" class="text-center text-xl font-bold text-gray-800"></p>
+
+          <div id="compareTotalCard" class="gradient-primary rounded-2xl shadow-xl p-6 text-white text-center relative overflow-hidden">
+            <p class="text-white/80 text-lg font-medium">Thay đổi tổng chi</p>
+            <p id="compareTotalDiff" class="text-3xl font-extrabold mt-2">0 VND</p>
+            <p id="compareTotalPercent" class="text-lg mt-2 text-white/80"></p>
+          </div>
+
+          <div id="compareCards" class="grid grid-cols-2 gap-4"></div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white rounded-2xl shadow-soft p-4 border border-gray-100">
+              <h3 class="text-base font-bold text-gray-800 mb-3 text-center" id="mainPieTitle">Tháng chính</h3>
+              <canvas id="mainPieChart" style="max-height: 150px;"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow-soft p-4 border border-gray-100">
+              <h3 class="text-base font-bold text-gray-800 mb-3 text-center" id="comparePieTitle">Tháng so sánh</h3>
+              <canvas id="comparePieChart" style="max-height: 150px;"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Ngân sách -->
+      <div id="tab-budget" data-tab class="hidden px-5 py-5">
+        <div class="bg-white rounded-2xl shadow-soft p-6 border border-gray-100">
+          <div class="flex items-center gap-4 mb-6">
+            <div class="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center">
+              <i class='bx bx-target-lock text-3xl text-white'></i>
+            </div>
+            <div>
+              <h2 class="text-2xl font-bold text-gray-800">Ngân sách tháng</h2>
+              <p class="text-base text-gray-500">Thiết lập giới hạn chi tiêu</p>
+            </div>
+          </div>
+          
+          <div id="budgetSkeleton" class="space-y-4">
+            <div class="shimmer-bg rounded-2xl h-20"></div>
+            <div class="shimmer-bg rounded-2xl h-20"></div>
+            <div class="shimmer-bg rounded-2xl h-20"></div>
+          </div>
+          
+          <form id="budgetForm" class="space-y-4 hidden"></form>
+          
+          <button type="submit" form="budgetForm" class="w-full gradient-primary text-white font-semibold rounded-2xl px-5 py-5 text-lg shadow-lg btn-bounce mt-6">
+            <i class='bx bx-save mr-2'></i>Lưu ngân sách
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white/98 backdrop-blur-xl border-t border-gray-200 shadow-2xl z-[100] safe-bottom">
+      <div class="grid grid-cols-4 py-3">
+        <button onclick="showTab('overview')" id="navOverview" class="nav-btn flex flex-col items-center py-2 text-primary">
+          <div class="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-1">
+            <i class='bx bx-home-alt text-3xl'></i>
+          </div>
+          <span class="text-sm font-semibold">Tổng quan</span>
+        </button>
+        <button onclick="showTab('history')" id="navHistory" class="nav-btn flex flex-col items-center py-2 text-gray-400">
+          <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-1">
+            <i class='bx bx-history text-3xl'></i>
+          </div>
+          <span class="text-sm font-semibold">Lịch sử</span>
+        </button>
+        <button onclick="showTab('compare')" id="navCompare" class="nav-btn flex flex-col items-center py-2 text-gray-400">
+          <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-1">
+            <i class='bx bx-bar-chart-alt-2 text-3xl'></i>
+          </div>
+          <span class="text-sm font-semibold">So sánh</span>
+        </button>
+        <button onclick="showTab('budget')" id="navBudget" class="nav-btn flex flex-col items-center py-2 text-gray-400">
+          <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-1">
+            <i class='bx bx-wallet text-3xl'></i>
+          </div>
+          <span class="text-sm font-semibold">Ngân sách</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Add/Edit Modal - Ở giữa màn hình -->
+    <div id="addModal" class="modal-overlay hidden" onclick="if(event.target===this) closeAddModal()">
+      <div class="modal-content p-6 animate-scale-in">
+        <div class="flex justify-between items-center mb-6">
+          <h2 id="modalTitle" class="text-2xl font-bold text-gray-800">Thêm chi tiêu mới</h2>
+          <button onclick="closeAddModal()" class="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
+            <i class='bx bx-x text-3xl text-gray-600'></i>
+          </button>
+        </div>
+        <form id="expenseForm" class="space-y-4">
+          <input type="hidden" id="editId">
+          
+          <div>
+            <label class="text-base font-semibold text-gray-700 mb-2 block">Số tiền (VND)</label>
+            <input type="number" id="amount" required placeholder="Nhập số tiền" 
+              class="w-full border border-gray-200 rounded-2xl px-5 py-4 text-xl font-semibold" inputmode="numeric">
+          </div>
+          
+          <div>
+            <label class="text-base font-semibold text-gray-700 mb-2 block">Danh mục</label>
+            <select id="category" required class="w-full border border-gray-200 rounded-2xl px-5 py-4 text-lg appearance-none bg-white">
+              <option value="">Chọn danh mục</option>
+              <option value="Ăn uống">🍜 Ăn uống</option>
+              <option value="Di chuyển">🚗 Di chuyển</option>
+              <option value="Giải trí">🎮 Giải trí</option>
+              <option value="Mua sắm">🛒 Mua sắm</option>
+              <option value="Hóa đơn">📄 Hóa đơn</option>
+              <option value="Y tế">💊 Y tế</option>
+              <option value="Khác">📦 Khác</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="text-base font-semibold text-gray-700 mb-2 block">Mô tả</label>
+            <input type="text" id="description" placeholder="Mô tả chi tiêu"
+              class="w-full border border-gray-200 rounded-2xl px-5 py-4 text-lg">
+          </div>
+          
+          <div class="flex gap-3 pt-3">
+            <button type="button" onclick="closeAddModal()" class="flex-1 bg-gray-100 text-gray-700 rounded-2xl py-4 font-semibold text-lg btn-bounce">
+              Hủy
+            </button>
+            <button type="submit" class="flex-1 gradient-primary text-white rounded-2xl py-4 font-semibold text-lg shadow-lg btn-bounce">
+              <i class='bx bx-check mr-1'></i>Lưu
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Delete Confirm Modal - Ở giữa màn hình -->
+    <div id="deleteModal" class="modal-overlay hidden" onclick="if(event.target===this) closeDeleteModal()">
+      <div class="modal-content p-6 animate-scale-in text-center">
+        <div class="w-24 h-24 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-5">
+          <i class='bx bx-trash text-5xl text-danger'></i>
+        </div>
+        <h3 class="text-2xl font-bold text-gray-800 mb-3">Xác nhận xóa</h3>
+        <p class="text-gray-500 text-lg mb-6">Bạn có chắc muốn xóa chi tiêu này?<br>Hành động này không thể hoàn tác.</p>
+        <div class="flex gap-3">
+          <button onclick="closeDeleteModal()" class="flex-1 bg-gray-100 text-gray-700 rounded-2xl py-4 font-semibold text-lg btn-bounce">
+            Hủy
+          </button>
+          <button onclick="confirmDelete()" class="flex-1 gradient-danger text-white rounded-2xl py-4 font-semibold text-lg shadow-lg btn-bounce">
+            Xóa
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Category icons và colors
+      const categoryIcons = {
+        'Ăn uống': '🍜',
+        'Di chuyển': '🚗',
+        'Giải trí': '🎮',
+        'Mua sắm': '🛒',
+        'Hóa đơn': '📄',
+        'Y tế': '💊',
+        'Khác': '📦'
+      };
+
+      const categoryColors = {
+        'Ăn uống': '#f97316',
+        'Di chuyển': '#3b82f6',
+        'Giải trí': '#8b5cf6',
+        'Mua sắm': '#ec4899',
+        'Hóa đơn': '#14b8a6',
+        'Y tế': '#ef4444',
+        'Khác': '#6b7280'
+      };
+
+      let allExpenses = [];
+      let budgetData = {};
+      let deleteId = null;
+      let pieChart = null;
+      let mainPieChart = null;
+      let comparePieChart = null;
+
+      // Toast notification - có nút đóng (×)
+      function showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        
+        const colors = {
+          success: 'bg-emerald-500',
+          error: 'bg-red-500',
+          warning: 'bg-amber-500',
+          info: 'bg-indigo-500'
+        };
+        
+        const icons = {
+          success: 'bx-check-circle',
+          error: 'bx-error-circle',
+          warning: 'bx-error',
+          info: 'bx-info-circle'
+        };
+        
+        toast.className = `toast ${colors[type]} text-white px-5 py-4 rounded-2xl shadow-xl flex items-center gap-3`;
+        toast.innerHTML = `
+          <i class='bx ${icons[type]} text-2xl'></i>
+          <span class="flex-1 text-lg font-medium">${message}</span>
+          <button onclick="this.parentElement.remove()" class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/30">
+            <i class='bx bx-x text-2xl'></i>
+          </button>
+        `;
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+          toast.classList.add('hide');
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+      }
+
+      // Format currency
+      function formatCurrency(amount) {
+        return new Intl.NumberFormat('vi-VN').format(amount) + ' VND';
+      }
+
+      function formatShortCurrency(amount) {
+        if (amount >= 1000000) return (amount / 1000000).toFixed(1) + 'M';
+        if (amount >= 1000) return (amount / 1000).toFixed(0) + 'K';
+        return amount.toString();
+      }
+
+      // Format date
+      function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      }
+
+      // Tab navigation
+      function showTab(tabName) {
+        document.querySelectorAll('[data-tab]').forEach(tab => tab.classList.add('hidden'));
+        document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+        
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+          btn.classList.remove('text-primary');
+          btn.classList.add('text-gray-400');
+          btn.querySelector('div').classList.remove('bg-primary/10');
+        });
+        
+        const activeBtn = document.getElementById(`nav${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
+        activeBtn.classList.remove('text-gray-400');
+        activeBtn.classList.add('text-primary');
+        activeBtn.querySelector('div').classList.add('bg-primary/10');
+
+        document.getElementById('overviewMonthSelector').classList.toggle('hidden', tabName !== 'overview');
+      }
+
+      function loadAllData() {
+        document.getElementById('loadingOverlay').classList.remove('hidden');
+        document.getElementById('errorMessage').classList.add('hidden');
+        
+        google.script.run
+          .withSuccessHandler(handleDataLoaded)
+          .withFailureHandler(handleError)
+          .getAllData();
+      }
+
+      function handleDataLoaded(result) {
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        
+        try {
+          const data = typeof result === 'string' ? JSON.parse(result) : result;
+          
+          if (data.warning) {
+            showToast(data.warning, 'warning');
+          }
+          
+          allExpenses = data.expenses || [];
+          renderDashboard(data.dashboard);
+          renderExpenses(allExpenses);
+          renderBudgetForm(data.dashboard?.summary || {});
+          
+        } catch (e) {
+          console.error('Parse error:', e);
+          showToast('Lỗi xử lý dữ liệu', 'error');
+        }
+      }
+
+      function handleError(error) {
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        document.getElementById('errorMessage').classList.remove('hidden');
+        console.error('Error:', error);
+      }
+
+      // Render dashboard
+      function renderDashboard(dashboard) {
+        if (!dashboard) return;
+        
+        document.getElementById('monthlyTotal').textContent = formatCurrency(dashboard.monthlyTotal || 0);
+        
+        const cardsContainer = document.getElementById('budgetCards');
+        const skeleton = document.getElementById('budgetCardsSkeleton');
+        
+        let cardsHtml = '';
+        const summary = dashboard.summary || {};
+        
+        Object.entries(summary).forEach(([cat, info]) => {
+          const icon = categoryIcons[cat] || '📦';
+          const color = categoryColors[cat] || '#6b7280';
+          const spent = info.spent || 0;
+          const budget = info.budget || 0;
+          const percentage = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
+          
+          let statusColor = 'bg-emerald-500';
+          if (percentage > 80) statusColor = 'bg-red-500';
+          else if (percentage > 50) statusColor = 'bg-amber-500';
+          
+          cardsHtml += `
+            <div class="bg-white rounded-2xl shadow-soft p-5 border border-gray-100">
+              <div class="flex items-center gap-3 mb-3">
+                <span class="text-3xl">${icon}</span>
+                <span class="text-lg font-semibold text-gray-800 truncate">${cat}</span>
+              </div>
+              <p class="text-2xl font-bold text-gray-900">${formatShortCurrency(spent)}</p>
+              ${budget > 0 ? `
+                <div class="mt-3">
+                  <div class="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div class="${statusColor} h-full rounded-full transition-all" style="width: ${percentage}%"></div>
+                  </div>
+                  <p class="text-sm text-gray-500 mt-1">/${formatShortCurrency(budget)}</p>
+                </div>
+              ` : '<p class="text-sm text-gray-400 mt-3">Chưa đặt ngân sách</p>'}
+            </div>
+          `;
+        });
+        
+        cardsContainer.innerHTML = cardsHtml;
+        skeleton.classList.add('hidden');
+        cardsContainer.classList.remove('hidden');
+        
+        renderPieChart(dashboard.pieData);
+      }
+
+      // Render pie chart
+      function renderPieChart(pieData) {
+        const chartSkeleton = document.getElementById('chartSkeleton');
+        const chartCanvas = document.getElementById('pieChart');
+        const noDataDiv = document.getElementById('noChartData');
+        
+        chartSkeleton.classList.add('hidden');
+        
+        if (!pieData || !pieData.data || pieData.data.every(v => v === 0)) {
+          noDataDiv.classList.remove('hidden');
+          chartCanvas.classList.add('hidden');
+          return;
+        }
+        
+        noDataDiv.classList.add('hidden');
+        chartCanvas.classList.remove('hidden');
+        
+        const filteredLabels = [];
+        const filteredData = [];
+        const filteredColors = [];
+        
+        pieData.labels.forEach((label, i) => {
+          if (pieData.data[i] > 0) {
+            filteredLabels.push(label);
+            filteredData.push(pieData.data[i]);
+            filteredColors.push(categoryColors[label] || '#6b7280');
+          }
+        });
+        
+        if (pieChart) pieChart.destroy();
+        
+        pieChart = new Chart(chartCanvas, {
+          type: 'doughnut',
+          data: {
+            labels: filteredLabels,
+            datasets: [{
+              data: filteredData,
+              backgroundColor: filteredColors,
+              borderWidth: 0,
+              spacing: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '60%',
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  padding: 20,
+                  usePointStyle: true,
+                  pointStyle: 'circle',
+                  font: { size: 14, weight: '500' }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // Render expenses
+      function renderExpenses(expenses) {
+        const skeleton = document.getElementById('tableSkeleton');
+        const list = document.getElementById('expensesList');
+        const empty = document.getElementById('emptyMessage');
+        
+        skeleton.classList.add('hidden');
+        
+        if (!expenses || expenses.length === 0) {
+          list.classList.add('hidden');
+          empty.classList.remove('hidden');
+          return;
+        }
+        
+        empty.classList.add('hidden');
+        list.classList.remove('hidden');
+        
+        let html = '';
+        expenses.forEach(exp => {
+          const icon = categoryIcons[exp.category] || '📦';
+          const color = categoryColors[exp.category] || '#6b7280';
+          
+          html += `
+            <div class="bg-white rounded-2xl shadow-soft p-5 border border-gray-100 animate-fade-in">
+              <div class="flex items-start gap-4">
+                <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl" style="background: ${color}20">
+                  ${icon}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="font-semibold text-gray-800 text-lg truncate">${exp.description || 'Không có mô tả'}</p>
+                  <p class="text-base text-gray-500 mt-1">${exp.category}</p>
+                  <p class="text-sm text-gray-400 mt-1">${formatDate(exp.date)}</p>
+                </div>
+                <div class="text-right">
+                  <p class="font-bold text-xl text-gray-900">${formatShortCurrency(exp.amount)}</p>
+                  <div class="flex gap-2 mt-3">
+                    <button onclick="editExpense(${exp.id})" class="w-12 h-12 rounded-xl bg-blue-50 active:bg-blue-100 flex items-center justify-center btn-bounce">
+                      <i class='bx bx-edit text-xl text-blue-500'></i>
+                    </button>
+                    <button onclick="openDeleteModal(${exp.id})" class="w-12 h-12 rounded-xl bg-red-50 active:bg-red-100 flex items-center justify-center btn-bounce">
+                      <i class='bx bx-trash text-xl text-red-500'></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+        
+        list.innerHTML = html;
+        
+        const summaryDiv = document.getElementById('historySummary');
+        const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+        summaryDiv.innerHTML = `
+          <span class="bg-primary/10 text-primary px-5 py-2.5 rounded-full text-base font-semibold">${expenses.length} giao dịch</span>
+          <span class="bg-emerald-100 text-emerald-700 px-5 py-2.5 rounded-full text-base font-semibold">${formatCurrency(total)}</span>
+        `;
+      }
+
+      // Render budget form
+      function renderBudgetForm(summary) {
+        const skeleton = document.getElementById('budgetSkeleton');
+        const form = document.getElementById('budgetForm');
+        
+        const categories = ['Ăn uống', 'Di chuyển', 'Giải trí', 'Mua sắm', 'Hóa đơn', 'Y tế', 'Khác'];
+        
+        let html = '';
+        categories.forEach(cat => {
+          const icon = categoryIcons[cat];
+          const budget = summary[cat]?.budget || 0;
+          
+          html += `
+            <div class="flex items-center gap-4 bg-gray-50 rounded-2xl p-4">
+              <span class="text-3xl">${icon}</span>
+              <span class="flex-1 font-semibold text-gray-700 text-lg">${cat}</span>
+              <input type="number" name="budget_${cat}" value="${budget}" placeholder="0"
+                class="w-36 border border-gray-200 rounded-xl px-4 py-3 text-lg text-right font-medium" inputmode="numeric">
+            </div>
+          `;
+        });
+        
+        form.innerHTML = html;
+        skeleton.classList.add('hidden');
+        form.classList.remove('hidden');
+        
+        form.onsubmit = saveBudget;
+      }
+
+      function saveBudget(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const budgets = {};
+        
+        formData.forEach((value, key) => {
+          if (key.startsWith('budget_')) {
+            const cat = key.replace('budget_', '');
+            budgets[cat] = parseInt(value) || 0;
+          }
+        });
+        
+        showToast('Đang lưu ngân sách...', 'info');
+        
+        google.script.run
+          .withSuccessHandler(() => {
+            showToast('Đã lưu ngân sách thành công!', 'success');
+            loadAllData();
+          })
+          .withFailureHandler((error) => {
+            showToast('Lỗi khi lưu ngân sách', 'error');
+          })
+          .setBudgets(budgets);
+      }
+
+      // Modal functions
+      function openAddModal() {
+        document.getElementById('modalTitle').textContent = 'Thêm chi tiêu mới';
+        document.getElementById('expenseForm').reset();
+        document.getElementById('editId').value = '';
+        document.getElementById('addModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeAddModal() {
+        document.getElementById('addModal').classList.add('hidden');
+        document.body.style.overflow = '';
+      }
+
+      function editExpense(id) {
+        const expense = allExpenses.find(e => e.id == id);
+        if (!expense) {
+          showToast('Không tìm thấy chi tiêu', 'error');
+          return;
+        }
+        
+        document.getElementById('modalTitle').textContent = 'Sửa chi tiêu';
+        document.getElementById('editId').value = id;
+        document.getElementById('amount').value = expense.amount;
+        document.getElementById('category').value = expense.category;
+        document.getElementById('description').value = expense.description || '';
+        document.getElementById('addModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function openDeleteModal(id) {
+        deleteId = id;
+        document.getElementById('deleteModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+        document.body.style.overflow = '';
+        deleteId = null;
+      }
+
+      function confirmDelete() {
+        if (!deleteId) return;
+        
+        closeDeleteModal();
+        showToast('Đang xóa...', 'info');
+        
+        google.script.run
+          .withSuccessHandler((result) => {
+            showToast('Đã xóa thành công!', 'success');
+            handleDataLoaded(result);
+          })
+          .withFailureHandler(() => {
+            showToast('Lỗi khi xóa', 'error');
+          })
+          .deleteExpense(deleteId);
+      }
+
+      document.getElementById('expenseForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const editId = document.getElementById('editId').value;
+        const data = {
+          amount: parseInt(document.getElementById('amount').value),
+          category: document.getElementById('category').value,
+          description: document.getElementById('description').value || ''
+        };
+        
+        closeAddModal();
+        showToast(editId ? 'Đang cập nhật...' : 'Đang thêm...', 'info');
+        
+        if (editId) {
+          google.script.run
+            .withSuccessHandler((result) => {
+              showToast('Đã cập nhật thành công!', 'success');
+              handleDataLoaded(result);
+            })
+            .withFailureHandler(() => {
+              showToast('Lỗi khi cập nhật', 'error');
+            })
+            .updateExpense(parseInt(editId), data);
+        } else {
+          google.script.run
+            .withSuccessHandler((result) => {
+              showToast('Đã thêm thành công!', 'success');
+              handleDataLoaded(result);
+            })
+            .withFailureHandler(() => {
+              showToast('Lỗi khi thêm', 'error');
+            })
+            .addExpense(data);
+        }
+      });
+
+      // Filter functions
+      function toggleFilter() {
+        document.getElementById('filterForm').classList.toggle('hidden');
+      }
+
+      function applyFilters() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const fromDate = document.getElementById('fromDate').value;
+        const toDate = document.getElementById('toDate').value;
+        const category = document.getElementById('categoryFilter').value;
+        
+        let filtered = allExpenses.filter(exp => {
+          if (search && !(exp.description || '').toLowerCase().includes(search) && !exp.category.toLowerCase().includes(search)) return false;
+          if (category && exp.category !== category) return false;
+          
+          const expDate = exp.date.split('T')[0];
+          if (fromDate && expDate < fromDate) return false;
+          if (toDate && expDate > toDate) return false;
+          return true;
+        });
+        
+        renderExpenses(filtered);
+        toggleFilter();
+      }
+
+      function clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('fromDate').value = '';
+        document.getElementById('toDate').value = '';
+        document.getElementById('categoryFilter').value = '';
+        renderExpenses(allExpenses);
+        toggleFilter();
+      }
+
+      function loadOverviewMonth() {
+        const month = document.getElementById('overviewMonthInput').value;
+        if (!month) return;
+        
+        showToast('Đang tải dữ liệu tháng...', 'info');
+        
+        google.script.run
+          .withSuccessHandler((result) => {
+            const data = typeof result === 'string' ? JSON.parse(result) : result;
+            renderDashboard(data);
+            showToast('Đã tải xong!', 'success');
+          })
+          .withFailureHandler(() => {
+            showToast('Lỗi khi tải dữ liệu', 'error');
+          })
+          .getDashboardData(month);
+      }
+
+      function loadComparison() {
+        const mainMonth = document.getElementById('compareMainMonth').value;
+        const vsMonth = document.getElementById('compareVsMonth').value;
+        
+        if (!mainMonth || !vsMonth) {
+          showToast('Vui lòng chọn cả 2 tháng', 'warning');
+          return;
+        }
+        
+        showToast('Đang so sánh...', 'info');
+        
+        google.script.run
+          .withSuccessHandler(renderComparison)
+          .withFailureHandler(() => {
+            showToast('Lỗi khi so sánh', 'error');
+          })
+          .getComparisonData(mainMonth, vsMonth);
+      }
+
+      function renderComparison(result) {
+        const data = typeof result === 'string' ? JSON.parse(result) : result;
+        
+        document.getElementById('compareContent').classList.remove('hidden');
+        document.getElementById('compareTitle').textContent = `${data.mainMonth} vs ${data.compareMonth}`;
+        
+        const diff = data.totalDiff;
+        const mainTotal = data.mainData?.monthlyTotal || 0;
+        const compareTotal = data.compareData?.monthlyTotal || 0;
+        const diffPercent = compareTotal > 0 ? ((diff / compareTotal) * 100).toFixed(1) : 0;
+        
+        document.getElementById('compareTotalDiff').textContent = (diff >= 0 ? '+' : '') + formatCurrency(diff);
+        document.getElementById('compareTotalPercent').textContent = (diff >= 0 ? '+' : '') + diffPercent + '% so với tháng trước';
+        
+        // Update card gradient based on diff
+        const totalCard = document.getElementById('compareTotalCard');
+        if (diff > 0) {
+          totalCard.className = 'gradient-danger rounded-2xl shadow-xl p-6 text-white text-center relative overflow-hidden';
+        } else if (diff < 0) {
+          totalCard.className = 'gradient-success rounded-2xl shadow-xl p-6 text-white text-center relative overflow-hidden';
+        } else {
+          totalCard.className = 'gradient-primary rounded-2xl shadow-xl p-6 text-white text-center relative overflow-hidden';
+        }
+        
+        // Compare cards
+        const cardsContainer = document.getElementById('compareCards');
+        let cardsHtml = '';
+        
+        const diffData = data.diff || {};
+        Object.keys(categoryIcons).forEach(cat => {
+          const catData = diffData[cat];
+          if (catData && (catData.main > 0 || catData.compare > 0)) {
+            const catDiff = catData.change || 0;
+            cardsHtml += `
+              <div class="bg-white rounded-2xl shadow-soft p-4 border border-gray-100">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-2xl">${categoryIcons[cat]}</span>
+                  <span class="font-semibold text-gray-800 text-base">${cat}</span>
+                </div>
+                <p class="text-xl font-bold ${catDiff >= 0 ? 'text-red-500' : 'text-emerald-500'}">
+                  ${catDiff >= 0 ? '+' : ''}${formatShortCurrency(catDiff)}
+                </p>
+                <p class="text-sm text-gray-500 mt-1">${formatShortCurrency(catData.main)} / ${formatShortCurrency(catData.compare)}</p>
+              </div>
+            `;
+          }
+        });
+        
+        cardsContainer.innerHTML = cardsHtml;
+        
+        // Pie charts
+        if (mainPieChart) mainPieChart.destroy();
+        if (comparePieChart) comparePieChart.destroy();
+        
+        mainPieChart = renderComparisonPieChart('mainPieChart', data.mainData?.pieData);
+        comparePieChart = renderComparisonPieChart('comparePieChart', data.compareData?.pieData);
+        
+        document.getElementById('mainPieTitle').textContent = data.mainMonth;
+        document.getElementById('comparePieTitle').textContent = data.compareMonth;
+        
+        showToast('Đã so sánh xong!', 'success');
+      }
+
+      function renderComparisonPieChart(canvasId, pieData) {
+        const canvas = document.getElementById(canvasId);
+        
+        if (!pieData || !pieData.data || pieData.data.every(v => v === 0)) {
+          canvas.style.display = 'none';
+          return null;
+        }
+        
+        canvas.style.display = 'block';
+        
+        const filteredLabels = [];
+        const filteredData = [];
+        const filteredColors = [];
+        
+        pieData.labels.forEach((label, i) => {
+          if (pieData.data[i] > 0) {
+            filteredLabels.push(label);
+            filteredData.push(pieData.data[i]);
+            filteredColors.push(categoryColors[label] || '#6b7280');
+          }
+        });
+        
+        return new Chart(canvas, {
+          type: 'doughnut',
+          data: {
+            labels: filteredLabels,
+            datasets: [{
+              data: filteredData,
+              backgroundColor: filteredColors,
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '50%',
+            plugins: {
+              legend: { display: false }
+            }
+          }
+        });
+      }
+
+      // Initialize
+      document.addEventListener('DOMContentLoaded', function() {
+        const now = new Date();
+        const currentMonth = now.toISOString().slice(0, 7);
+        document.getElementById('overviewMonthInput').value = currentMonth;
+        document.getElementById('compareMainMonth').value = currentMonth;
+        
+        const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        document.getElementById('compareVsMonth').value = prevMonth.toISOString().slice(0, 7);
+        
+        loadAllData();
+      });
+    </script>
+  </body>
+</html>
