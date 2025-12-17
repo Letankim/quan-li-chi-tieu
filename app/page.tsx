@@ -331,17 +331,10 @@ export default function ExpenseTracker() {
           >
             <Plus className="w-6 h-6" />
           </button>
-          <button
-            onClick={loadData}
-            className="w-12 h-12 rounded-2xl bg-gray-100 active:bg-gray-200 flex items-center justify-center btn-bounce"
-          >
-            <RefreshCw className="w-6 h-6 text-gray-600" />
-          </button>
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto pb-24">
-        {/* Month Selector for Overview */}
         {activeTab === "overview" && (
           <div className="px-4 pt-4">
             <div className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-soft border border-gray-100">
@@ -884,7 +877,7 @@ export default function ExpenseTracker() {
         )}
       </main>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white/98 backdrop-blur-xl border-t border-gray-200 shadow-2xl z-[100] safe-bottom">
+      <div className="fixed bottom-0 left-0 right-0 bg-white/98 backdrop-blur-xl border-t border-gray-200 shadow-2xl z-[100]">
         <div className="grid grid-cols-4 py-3">
           {[
             { id: "overview" as Tab, Icon: Home, label: "Tổng quan" },
