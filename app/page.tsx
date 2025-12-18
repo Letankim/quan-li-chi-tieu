@@ -102,7 +102,7 @@ export default function ExpenseTracker() {
     try {
       setIsLoading(true);
       setHasError(false);
-      await sleep(2000);
+      await sleep(1000);
       const data = await getAllData();
       setDashboard(data.dashboard);
       setExpenses(data.expenses || []);
