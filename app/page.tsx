@@ -343,7 +343,7 @@ export default function ExpenseTracker() {
   };
 
   return (
-    <div className="w-full min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-white to-purple-50 overflow-hidden">
+    <div className="w-full min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-white to-purple-50 overflow-hidden pt-10">
       {toast && (
         <Toast
           message={toast.message}
