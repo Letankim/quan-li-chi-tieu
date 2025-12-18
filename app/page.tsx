@@ -44,6 +44,7 @@ import {
   Target,
   Save,
 } from "lucide-react";
+import { useRef } from "react";
 
 type Tab = "overview" | "history" | "compare" | "budget";
 type ToastType = "success" | "error" | "warning" | "info";
@@ -58,7 +59,7 @@ export default function ExpenseTracker() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
   const [comparison, setComparison] = useState<ComparisonData | null>(null);
-
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{
     message: string;
     type: ToastType;
@@ -101,6 +102,7 @@ export default function ExpenseTracker() {
     try {
       setIsLoading(true);
       setHasError(false);
+      await sleep(2000);
       const data = await getAllData();
       setDashboard(data.dashboard);
       setExpenses(data.expenses || []);
@@ -121,6 +123,18 @@ export default function ExpenseTracker() {
   }, [loadData]);
 
   useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === "overview" && scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [selectedMonth]);
+
+  useEffect(() => {
     if (dashboard?.summary) {
       const formatted: Record<string, string> = {};
       CATEGORIES.forEach((cat) => {
@@ -130,6 +144,9 @@ export default function ExpenseTracker() {
       setBudgetInputs(formatted);
     }
   }, [dashboard]);
+
+  const sleep = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
   const loadMonthData = async (month: string) => {
     try {
@@ -365,7 +382,10 @@ export default function ExpenseTracker() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-24 relative z-10">
+      <main
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto pb-24 relative z-10"
+      >
         {activeTab === "overview" && (
           <div className="px-4 pt-4">
             <div className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-soft border border-gray-100">

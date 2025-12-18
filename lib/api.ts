@@ -84,7 +84,6 @@ async function fetchWithTimeout(
   try {
     const res = await fetch(url, {
       ...options,
-      signal: controller.signal,
       cache: "no-store",
     })
     return res
