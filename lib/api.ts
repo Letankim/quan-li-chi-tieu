@@ -37,7 +37,15 @@ export interface ComparisonData {
   diff: Record<string, { main: number; compare: number; change: number }>
 }
 
-export const CATEGORIES = ["Ăn uống", "Di chuyển", "Giải trí", "Mua sắm", "Hóa đơn", "Y tế", "Khác"]
+export const CATEGORIES = [
+  "Ăn uống",
+  "Di chuyển",
+  "Giải trí",
+  "Mua sắm",
+  "Hóa đơn",
+  "Y tế",
+  "Khác",
+]
 
 export const CATEGORY_ICONS: Record<string, string> = {
   "Ăn uống": "🍜",
@@ -59,72 +67,145 @@ export const CATEGORY_COLORS: Record<string, string> = {
   Khác: "#6b7280",
 }
 
-async function fetchApi(url: string, options?: RequestInit) {
-  const response = await fetch(url, {
-    ...options,
+const GAS_URL =
+  process.env.NEXT_PUBLIC_GAS_URL ??
+  "https://3docorp.id.vn/api.php"
+
+const TIMEOUT_MS = 8000
+
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeout = TIMEOUT_MS
+) {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      cache: "no-store",
+    })
+    return res
+  } finally {
+    clearTimeout(id)
+  }
+}
+
+function safeParseJSON(text: string) {
+  try {
+    return JSON.parse(text)
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error("Response is not JSON")
+    return JSON.parse(match[0])
+  }
+}
+
+async function fetchGAS(
+  params?: URLSearchParams,
+  body?: any
+) {
+  const url = params
+    ? `${GAS_URL}?${params.toString()}`
+    : GAS_URL
+
+  const res = await fetchWithTimeout(url, {
+    method: body ? "POST" : "GET",
     headers: {
       "Content-Type": "application/json",
-      ...options?.headers,
+      Accept: "application/json",
     },
+    body: body ? JSON.stringify(body) : undefined,
   })
-  return response.json()
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`GAS Error ${res.status}: ${text}`)
+  }
+
+  const text = await res.text()
+  return safeParseJSON(text)
 }
 
 export async function getAllData(month?: string): Promise<AllData> {
   const params = new URLSearchParams({ action: "getAllData" })
   if (month) params.append("month", month)
-  return fetchApi(`/api/expenses?${params}`)
+  return fetchGAS(params)
 }
 
-export async function getDashboardData(month?: string): Promise<DashboardData> {
-  const params = new URLSearchParams({ action: "getDashboardData" })
+export async function getDashboardData(
+  month?: string
+): Promise<DashboardData> {
+  const params = new URLSearchParams({
+    action: "getDashboardData",
+  })
   if (month) params.append("month", month)
-  return fetchApi(`/api/expenses?${params}`)
+  return fetchGAS(params)
 }
 
-export async function getComparisonData(mainMonth: string, compareMonth: string): Promise<ComparisonData> {
+export async function getComparisonData(
+  mainMonth: string,
+  compareMonth: string
+): Promise<ComparisonData> {
   const params = new URLSearchParams({
     action: "getComparisonData",
     month: mainMonth,
     compareMonth,
   })
-  return fetchApi(`/api/expenses?${params}`)
+  return fetchGAS(params)
 }
 
-export async function addExpense(expense: { amount: number; category: string; description: string }) {
-  return fetchApi("/api/expenses", {
-    method: "POST",
-    body: JSON.stringify({ action: "addExpense", expense }),
+export async function addExpense(expense: {
+  amount: number
+  category: string
+  description: string
+}) {
+  return fetchGAS(undefined, {
+    action: "addExpense",
+    expense,
   })
 }
 
-export async function updateExpense(id: number, expense: { amount: number; category: string; description: string }) {
-  return fetchApi("/api/expenses", {
-    method: "POST",
-    body: JSON.stringify({ action: "updateExpense", id, expense }),
+export async function updateExpense(
+  id: number,
+  expense: {
+    amount: number
+    category: string
+    description: string
+  }
+) {
+  return fetchGAS(undefined, {
+    action: "updateExpense",
+    id,
+    expense,
   })
 }
 
 export async function deleteExpense(id: number) {
-  return fetchApi("/api/expenses", {
-    method: "POST",
-    body: JSON.stringify({ action: "deleteExpense", id }),
+  return fetchGAS(undefined, {
+    action: "deleteExpense",
+    id,
   })
 }
 
-export async function setBudgets(budgets: Record<string, number>) {
-  return fetchApi("/api/expenses", {
-    method: "POST",
-    body: JSON.stringify({ action: "setBudgets", budgets }),
+export async function setBudgets(
+  budgets: Record<string, number>
+) {
+  return fetchGAS(undefined, {
+    action: "setBudgets",
+    budgets,
   })
 }
 
+// ================== FORMAT HELPERS ==================
 export function formatMoney(amount: number): string {
-  if (amount >= 1000000) {
-    return (amount / 1000000).toFixed(1).replace(".0", "") + "M"
+  if (amount >= 1_000_000) {
+    return (amount / 1_000_000).toFixed(1).replace(".0", "") + "M"
   }
-  if (amount >= 1000) {
-    return (amount / 1000).toFixed(0) + "K"
+  if (amount >= 1_000) {
+    return (amount / 1_000).toFixed(0) + "K"
   }
   return amount.toLocaleString("vi-VN")
 }

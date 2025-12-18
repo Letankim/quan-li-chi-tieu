@@ -36,7 +36,7 @@ import {
   RefreshCw,
   Calendar,
   TrendingUp,
-  PieChart as PieChartIcon,
+  PieChartIcon,
   Search,
   Receipt,
   Pencil,
@@ -326,7 +326,7 @@ export default function ExpenseTracker() {
   };
 
   return (
-    <div className="w-full min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className="w-full min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-white to-purple-50 overflow-hidden">
       {toast && (
         <Toast
           message={toast.message}
@@ -335,7 +335,7 @@ export default function ExpenseTracker() {
         />
       )}
 
-      <header className="px-4 py-4 border-b border-gray-100/50 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur-xl z-40 shrink-0">
+      <header className="px-4 py-4 border-b border-gray-100/50 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur-xl z-50 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl gradient-primary flex items-center justify-center shadow-lg">
             <Wallet className="w-6 h-6 text-white" />
@@ -365,7 +365,7 @@ export default function ExpenseTracker() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-24">
+      <main className="flex-1 overflow-y-auto pb-24 relative z-10">
         {activeTab === "overview" && (
           <div className="px-4 pt-4">
             <div className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-soft border border-gray-100">
@@ -386,17 +386,19 @@ export default function ExpenseTracker() {
         {activeTab === "overview" && dashboard && (
           <div className="px-4 py-5 space-y-5">
             <div className="gradient-primary rounded-3xl shadow-xl p-7 text-white text-center relative overflow-hidden animate-in slide-in-from-bottom duration-300">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
-              <p className="text-white/80 text-base font-medium uppercase tracking-wider">
-                Tổng chi tháng này
-              </p>
-              <p className="text-3xl font-extrabold mt-3">
-                {formatMoneyFull(dashboard.monthlyTotal || 0)}
-              </p>
-              <div className="mt-4 flex items-center justify-center gap-2 text-white/70 text-sm">
-                <TrendingUp className="w-5 h-5" />
-                <span>Nay chi tiêu gì cục vàng</span>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 z-0 pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2 z-0 pointer-events-none"></div>
+              <div className="relative z-10">
+                <p className="text-white/80 text-base font-medium uppercase tracking-wider">
+                  Tổng chi tháng này
+                </p>
+                <p className="text-3xl font-extrabold mt-3">
+                  {formatMoneyFull(dashboard.monthlyTotal || 0)}
+                </p>
+                <div className="mt-4 flex items-center justify-center gap-2 text-white/70 text-sm">
+                  <TrendingUp className="w-5 h-5" />
+                  <span>Nay chi tiêu gì cục vàng</span>
+                </div>
               </div>
             </div>
 
@@ -557,7 +559,6 @@ export default function ExpenseTracker() {
               </div>
             )}
 
-            {/* Summary Tags */}
             <div className="flex flex-wrap gap-2">
               <span className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-sm font-semibold">
                 {filteredExpenses.length} giao dịch
@@ -697,10 +698,10 @@ export default function ExpenseTracker() {
                       : "gradient-primary"
                   } rounded-2xl shadow-xl p-6 text-white text-center relative overflow-hidden`}
                 >
-                  <p className="text-white/80 text-base font-medium">
+                  <p className="text-white/80 text-base font-medium relative z-10">
                     Thay đổi tổng chi
                   </p>
-                  <p className="text-2xl font-extrabold mt-2">
+                  <p className="text-2xl font-extrabold mt-2 relative z-10">
                     {comparison.totalDiff > 0
                       ? "+"
                       : comparison.totalDiff < 0
@@ -708,7 +709,7 @@ export default function ExpenseTracker() {
                       : ""}
                     {formatMoneyFull(Math.abs(comparison.totalDiff))}
                   </p>
-                  <p className="text-base mt-2 text-white/80">
+                  <p className="text-base mt-2 text-white/80 relative z-10">
                     {comparison.compareData?.monthlyTotal > 0
                       ? `${
                           comparison.totalDiff > 0
