@@ -358,9 +358,7 @@ export default function ExpenseTracker() {
             <Wallet className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-800">
-              Yến Gem dễ thương
-            </h1>
+            <h1 className="text-xl font-bold text-gray-800">Em bé iu</h1>
             <p className="text-sm text-gray-400">Quản lý cho bé</p>
           </div>
         </div>
