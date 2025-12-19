@@ -19,7 +19,7 @@ import {
   CATEGORY_COLORS,
   type Expense,
   type DashboardData,
-  type ComparisonData,
+  getExpensesFiltered,
 } from "@/lib/api";
 import { Toast } from "@/components/toast";
 import { LoadingOverlay, ErrorMessage } from "@/components/loading";
@@ -43,11 +43,16 @@ import {
   Trash2,
   Target,
   Save,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Sparkles,
 } from "lucide-react";
 import { useRef } from "react";
 
 type Tab = "overview" | "history" | "compare" | "budget";
 type ToastType = "success" | "error" | "warning" | "info";
+type ViewMode = "monthly" | "daily";
 
 export default function ExpenseTracker() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -58,7 +63,7 @@ export default function ExpenseTracker() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
-  const [comparison, setComparison] = useState<ComparisonData | null>(null);
+  const [comparison, setComparison] = useState<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{
     message: string;
@@ -67,8 +72,9 @@ export default function ExpenseTracker() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const [viewMode, setViewMode] = useState<ViewMode>("monthly");
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
@@ -76,6 +82,7 @@ export default function ExpenseTracker() {
       "0"
     )}`;
   });
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [mainMonth, setMainMonth] = useState(selectedMonth);
   const [compareMonth, setCompareMonth] = useState(() => {
     const now = new Date();
@@ -94,6 +101,10 @@ export default function ExpenseTracker() {
 
   const [budgetInputs, setBudgetInputs] = useState<Record<string, string>>({});
 
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [detailsCategory, setDetailsCategory] = useState("");
+  const [detailsExpenses, setDetailsExpenses] = useState<Expense[]>([]);
+
   const showToast = useCallback((message: string, type: ToastType) => {
     setToast({ message, type });
   }, []);
@@ -102,56 +113,47 @@ export default function ExpenseTracker() {
     try {
       setIsLoading(true);
       setHasError(false);
-      await sleep(1000);
       const data = await getAllData();
       setDashboard(data.dashboard);
       setExpenses(data.expenses || []);
       setFilteredExpenses(data.expenses || []);
-      if (data.warning) {
-        showToast(data.warning, "warning");
-      }
     } catch (error) {
       console.error("Error loading data:", error);
       setHasError(true);
     } finally {
       setIsLoading(false);
     }
-  }, [showToast]);
+  }, []);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === "overview" && scrollRef.current) {
       scrollRef.current.scrollTop = 0;
     }
-  }, [selectedMonth]);
+  }, [selectedMonth, selectedDate, viewMode]);
 
   useEffect(() => {
     if (dashboard?.summary) {
       const formatted: Record<string, string> = {};
       CATEGORIES.forEach((cat) => {
-        const budg = dashboard.summary?.[cat]?.budget || 0;
-        formatted[cat] = budg > 0 ? budg.toLocaleString("vi-VN") : "";
+        const daily = dashboard.summary?.[cat]?.dailyBudget || 0;
+        formatted[cat] = daily > 0 ? daily.toLocaleString("vi-VN") : "";
       });
       setBudgetInputs(formatted);
     }
   }, [dashboard]);
 
-  const sleep = (ms: number) =>
-    new Promise((resolve) => setTimeout(resolve, ms));
-
-  const loadMonthData = async (month: string) => {
+  const loadDashboard = async (period: string, mode: ViewMode) => {
     try {
       showToast("Bé ơi đợi xíu...", "info");
-      const data = await getDashboardData(month);
+      const data = await getDashboardData(period, mode);
       setDashboard(data);
       showToast("Xong rồi bé!", "success");
     } catch {
@@ -255,7 +257,6 @@ export default function ExpenseTracker() {
 
   const applyFilters = () => {
     let filtered = [...expenses];
-
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -264,23 +265,16 @@ export default function ExpenseTracker() {
           exp.category.toLowerCase().includes(query)
       );
     }
-
-    if (filterCategory) {
+    if (filterCategory)
       filtered = filtered.filter((exp) => exp.category === filterCategory);
-    }
-
-    if (filterFromDate) {
+    if (filterFromDate)
       filtered = filtered.filter(
         (exp) => exp.date.split("T")[0] >= filterFromDate
       );
-    }
-
-    if (filterToDate) {
+    if (filterToDate)
       filtered = filtered.filter(
         (exp) => exp.date.split("T")[0] <= filterToDate
       );
-    }
-
     setFilteredExpenses(filtered);
     setShowFilter(false);
   };
@@ -304,7 +298,7 @@ export default function ExpenseTracker() {
     setShowAddModal(true);
   };
 
-  const openDeleteModal = (id: number) => {
+  const openDeleteModal = (id: string) => {
     setDeleteId(id);
     setShowDeleteModal(true);
   };
@@ -312,35 +306,105 @@ export default function ExpenseTracker() {
   const filterPieData = (
     pieData: { labels: string[]; data: number[] } | undefined
   ) => {
-    if (!pieData || !pieData.data || pieData.data.length === 0) return null;
-
+    if (!pieData || pieData.data.length === 0) return null;
     const filteredLabels: string[] = [];
     const filteredValues: number[] = [];
-
     pieData.data.forEach((value, index) => {
       if (value > 0) {
         filteredValues.push(value);
         filteredLabels.push(pieData.labels[index]);
       }
     });
+    return filteredValues.length === 0
+      ? null
+      : { labels: filteredLabels, data: filteredValues };
+  };
 
-    if (filteredValues.length === 0) return null;
+  const loadDetails = async (category: string) => {
+    try {
+      let start: string, end: string;
+      if (viewMode === "monthly") {
+        const [year, month] = selectedMonth.split("-");
+        const days = new Date(parseInt(year), parseInt(month), 0).getDate();
+        start = `${selectedMonth}-01`;
+        end = `${selectedMonth}-${days.toString().padStart(2, "0")}`;
+      } else {
+        const dateStr = selectedDate.toISOString().split("T")[0];
+        start = end = dateStr;
+      }
+      const exps = await getExpensesFiltered(category, start, end);
+      setDetailsExpenses(exps);
+      setDetailsCategory(category);
+      setShowDetailsModal(true);
+    } catch {
+      showToast("Lỗi tải chi tiết", "error");
+    }
+  };
 
-    return { labels: filteredLabels, data: filteredValues };
+  const getWeekDays = () => {
+    const weekStart = new Date(selectedDate);
+    const day = weekStart.getDay();
+    weekStart.setDate(weekStart.getDate() - (day === 0 ? 6 : day - 1)); // Thứ 2 đầu tuần
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  };
+
+  const handlePrevWeek = () => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() - 7);
+    setSelectedDate(newDate);
+    loadDashboard(newDate.toISOString().split("T")[0], "daily");
+  };
+
+  const handleNextWeek = () => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + 7);
+    setSelectedDate(newDate);
+    loadDashboard(newDate.toISOString().split("T")[0], "daily");
+  };
+
+  const handleSelectDay = (day: Date) => {
+    setSelectedDate(day);
+    loadDashboard(day.toISOString().split("T")[0], "daily");
+  };
+
+  const handleChangeMode = (newMode: ViewMode) => {
+    setViewMode(newMode);
+    if (newMode === "monthly") {
+      loadDashboard(selectedMonth, "monthly");
+    } else {
+      const dateStr = selectedDate.toISOString().split("T")[0];
+      loadDashboard(dateStr, "daily");
+    }
+  };
+
+  const handleRefresh = () => {
+    if (activeTab === "overview") {
+      if (viewMode === "monthly") {
+        loadDashboard(selectedMonth, "monthly");
+      } else {
+        loadDashboard(selectedDate.toISOString().split("T")[0], "daily");
+      }
+    } else {
+      loadData();
+    }
   };
 
   if (isLoading) return <LoadingOverlay />;
   if (hasError) return <ErrorMessage onRetry={loadData} />;
 
-  const totalFiltered = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const total =
+    viewMode === "monthly"
+      ? dashboard?.monthlyTotal ?? 0
+      : dashboard?.dailyTotal ?? 0;
+  const totalLabel =
+    viewMode === "monthly" ? "Tổng chi tháng này" : "Tổng chi theo ngày";
+  const weekDays = getWeekDays();
 
-  const handleRefresh = () => {
-    if (activeTab === "overview") {
-      loadMonthData(selectedMonth);
-    } else {
-      loadData();
-    }
-  };
+  const totalFiltered = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   return (
     <div className="w-full min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-white to-purple-50 overflow-hidden pt-10">
@@ -385,19 +449,87 @@ export default function ExpenseTracker() {
         className="flex-1 overflow-y-auto pb-24 relative z-10"
       >
         {activeTab === "overview" && (
-          <div className="px-4 pt-4">
-            <div className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-soft border border-gray-100">
-              <Calendar className="w-6 h-6 text-gray-600" />
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => {
-                  setSelectedMonth(e.target.value);
-                  loadMonthData(e.target.value);
-                }}
-                className="flex-1 bg-transparent border-none text-gray-700 font-semibold text-lg outline-none"
-              />
+          <div className="px-4 pt-4 space-y-4">
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleChangeMode("monthly")}
+                className={`flex-1 py-3 rounded-2xl font-semibold ${
+                  viewMode === "monthly"
+                    ? "gradient-primary text-white shadow-lg"
+                    : "bg-gray-100 text-gray-700"
+                }`}
+              >
+                Theo tháng
+              </button>
+              <button
+                onClick={() => handleChangeMode("daily")}
+                className={`flex-1 py-3 rounded-2xl font-semibold ${
+                  viewMode === "daily"
+                    ? "gradient-primary text-white shadow-lg"
+                    : "bg-gray-100 text-gray-700"
+                }`}
+              >
+                Theo ngày
+              </button>
             </div>
+
+            {viewMode === "monthly" ? (
+              <div className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-soft border border-gray-100">
+                <Calendar className="w-6 h-6 text-gray-600" />
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    setSelectedMonth(e.target.value);
+                    loadDashboard(e.target.value, "monthly");
+                  }}
+                  className="flex-1 bg-transparent border-none text-gray-700 font-semibold text-lg outline-none"
+                />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={handlePrevWeek}
+                    className="p-2 rounded-full bg-gray-100"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </button>
+                  <span className="text-lg font-semibold">
+                    {selectedDate.toLocaleString("vi-VN", {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <button
+                    onClick={handleNextWeek}
+                    className="p-2 rounded-full bg-gray-100"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </button>
+                </div>
+                <div className="flex justify-between gap-1">
+                  {weekDays.map((day) => (
+                    <button
+                      key={day.toISOString()}
+                      onClick={() => handleSelectDay(day)}
+                      className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all ${
+                        day.toDateString() === selectedDate.toDateString()
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-secondary text-muted-foreground"
+                      }`}
+                    >
+                      <span className="text-[10px] uppercase">
+                        {day.toLocaleString("vi-VN", { weekday: "short" })}
+                      </span>
+                      <span className="text-sm font-semibold mt-1">
+                        {day.getDate()}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -407,11 +539,14 @@ export default function ExpenseTracker() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 z-0 pointer-events-none"></div>
               <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2 z-0 pointer-events-none"></div>
               <div className="relative z-10">
-                <p className="text-white/80 text-base font-medium uppercase tracking-wider">
-                  Tổng chi tháng này
-                </p>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Sparkles className="w-4 h-4" />
+                  <p className="text-sm  uppercase tracking-wider">
+                    {totalLabel}
+                  </p>
+                </div>
                 <p className="text-3xl font-extrabold mt-3">
-                  {formatMoneyFull(dashboard.monthlyTotal || 0)}
+                  {formatMoneyFull(total)}
                 </p>
                 <div className="mt-4 flex items-center justify-center gap-2 text-white/70 text-sm">
                   <TrendingUp className="w-5 h-5" />
@@ -422,51 +557,74 @@ export default function ExpenseTracker() {
 
             <div className="grid grid-cols-2 gap-3">
               {dashboard.summary &&
-                Object.entries(dashboard.summary).map(([cat, info]) => {
-                  const icon = CATEGORY_ICONS[cat] || "📦";
-                  const spent = info.spent || 0;
-                  const budget = info.budget || 0;
-                  const percentage =
-                    budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
+                Object.entries(dashboard.summary).map(
+                  ([cat, info]: [string, any]) => {
+                    const icon = CATEGORY_ICONS[cat] || "📦";
+                    const spent = info.spent || 0;
+                    const dailyBudget = info.dailyBudget || 0;
 
-                  let statusColor = "bg-emerald-500";
-                  if (percentage > 80) statusColor = "bg-red-500";
-                  else if (percentage > 50) statusColor = "bg-amber-500";
+                    const budgetForProgress =
+                      viewMode === "monthly"
+                        ? info.monthlyBudget || 0
+                        : dailyBudget;
+                    const percentage =
+                      budgetForProgress > 0
+                        ? Math.min((spent / budgetForProgress) * 100, 100)
+                        : 0;
 
-                  return (
-                    <div
-                      key={cat}
-                      className="bg-white rounded-2xl shadow-soft p-4 border border-gray-100 animate-in fade-in duration-300"
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <span className="text-2xl">{icon}</span>
-                        <span className="text-base font-semibold text-gray-800 truncate">
-                          {cat}
-                        </span>
-                      </div>
-                      <p className="text-xl font-bold text-gray-900">
-                        {formatMoney(spent)}
-                      </p>
-                      {budget > 0 ? (
-                        <div className="mt-3">
-                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className={`${statusColor} h-full rounded-full transition-all`}
-                              style={{ width: `${percentage}%` }}
-                            ></div>
+                    let statusColor = "bg-emerald-500";
+                    if (percentage > 80) statusColor = "bg-red-500";
+                    else if (percentage > 50) statusColor = "bg-amber-500";
+
+                    return (
+                      <div
+                        key={cat}
+                        className="glass rounded-xl p-4 h-full flex flex-col transition-all hover:border-primary/30 gap-2"
+                      >
+                        <div className="flex-grow">
+                          <div className="flex items-center gap-3 mb-3">
+                            <span className="text-2xl shrink-0">{icon}</span>
+                            <span className="text-base font-semibold text-gray-800 truncate">
+                              {cat}
+                            </span>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            /{formatMoney(budget)}
+
+                          <p className="text-xl font-bold text-gray-900">
+                            {formatMoney(spent)}
                           </p>
+
+                          {dailyBudget > 0 ? (
+                            <div className="mt-3">
+                              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`${statusColor} h-full rounded-full transition-all`}
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {viewMode === "daily"
+                                  ? `Hôm nay / ${formatMoney(dailyBudget)}`
+                                  : `/${formatMoney(budgetForProgress)}`}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-400 mt-3">
+                              Chưa đặt ngân sách
+                            </p>
+                          )}
                         </div>
-                      ) : (
-                        <p className="text-xs text-gray-400 mt-3">
-                          Chưa đặt ngân sách
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
+
+                        <button
+                          onClick={() => loadDetails(cat)}
+                          className="mt-auto w-full bg-indigo-100 text-indigo-600 py-2 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-indigo-200 transition"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Xem chi tiết
+                        </button>
+                      </div>
+                    );
+                  }
+                )}
             </div>
 
             <div className="bg-white rounded-3xl shadow-soft p-5 border border-gray-100 animate-in slide-in-from-bottom duration-300">
@@ -660,7 +818,6 @@ export default function ExpenseTracker() {
           </div>
         )}
 
-        {/* Tab: So sánh */}
         {activeTab === "compare" && (
           <div className="flex flex-col flex-1">
             <div className="shrink-0 px-4 pt-5 pb-8">
@@ -869,10 +1026,11 @@ export default function ExpenseTracker() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-gray-800">
-                    Ngân sách tháng
+                    Ngân sách mỗi ngày
                   </h2>
                   <p className="text-sm text-gray-500">
-                    Thiết lập giới hạn chi tiêu
+                    Thiết lập giới hạn chi tiêu hàng ngày (tự động tính ra
+                    tháng)
                   </p>
                 </div>
               </div>
@@ -981,6 +1139,48 @@ export default function ExpenseTracker() {
         }}
         onConfirm={handleDeleteExpense}
       />
+
+      <Modal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        title={`Chi tiết ${detailsCategory}`}
+      >
+        <div className="space-y-3">
+          {detailsExpenses.length === 0 ? (
+            <div className="text-center text-gray-400 py-8">
+              Không có chi tiêu
+            </div>
+          ) : (
+            detailsExpenses.map((exp) => (
+              <div
+                key={exp.id}
+                className="
+            bg-white
+            border border-gray-200
+            rounded-lg
+            px-4 py-3
+            flex items-center justify-between
+            hover:bg-gray-50
+            transition
+          "
+              >
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 truncate">
+                    {exp.description || "--"}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {formatDate(exp.date)}
+                  </p>
+                </div>
+
+                <p className="font-semibold text-gray-900 whitespace-nowrap">
+                  {formatMoney(exp.amount)}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

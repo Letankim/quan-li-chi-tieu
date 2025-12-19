@@ -1,5 +1,5 @@
 export interface Expense {
-  id: number
+  id: string
   date: string
   category: string
   amount: number
@@ -15,7 +15,8 @@ export interface CategorySummary {
 
 export interface DashboardData {
   summary: Record<string, CategorySummary>
-  monthlyTotal: number
+  monthlyTotal?: number
+  dailyTotal?: number
   pieData: {
     labels: string[]
     data: number[]
@@ -135,12 +136,28 @@ export async function getAllData(month?: string): Promise<AllData> {
 }
 
 export async function getDashboardData(
-  month?: string
+  period: string,
+  mode: string = 'monthly'
 ): Promise<DashboardData> {
   const params = new URLSearchParams({
     action: "getDashboardData",
+    mode,
+    period
   })
-  if (month) params.append("month", month)
+  return fetchGAS(params)
+}
+
+export async function getExpensesFiltered(
+  category?: string,
+  start?: string,
+  end?: string
+): Promise<Expense[]> {
+  const params = new URLSearchParams({
+    action: "getExpensesFiltered",
+  })
+  if (category) params.append("category", category)
+  if (start) params.append("start", start)
+  if (end) params.append("end", end)
   return fetchGAS(params)
 }
 
@@ -168,7 +185,7 @@ export async function addExpense(expense: {
 }
 
 export async function updateExpense(
-  id: number,
+  id: string,
   expense: {
     amount: number
     category: string
@@ -182,7 +199,7 @@ export async function updateExpense(
   })
 }
 
-export async function deleteExpense(id: number) {
+export async function deleteExpense(id: string) {
   return fetchGAS(undefined, {
     action: "deleteExpense",
     id,

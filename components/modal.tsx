@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useEffect } from "react";
+import { X } from "lucide-react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -12,11 +13,7 @@ interface ModalProps {
 
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = isOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
@@ -26,24 +23,53 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-6  animate-in fade-in duration-200"
+      className="
+        fixed inset-0 z-[9999]
+        bg-black/50 backdrop-blur-sm
+        flex items-center justify-center
+        p-4
+        animate-in fade-in duration-150
+      "
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-[28px] w-full max-w-[95%] max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200"
+        className="
+          bg-white
+          w-full max-w-2xl
+          max-h-[90vh]
+          rounded-xl
+          border border-gray-200
+          shadow-xl
+          overflow-hidden
+          animate-in zoom-in-95 duration-150
+        "
         onClick={(e) => e.stopPropagation()}
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        <div className="flex justify-between items-center p-6 border-b border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
+        {/* ===== HEADER ===== */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900 truncate">
+            {title}
+          </h2>
+
           <button
             onClick={onClose}
-            className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 text-2xl btn-bounce"
+            className="
+              w-9 h-9
+              flex items-center justify-center
+              rounded-md
+              text-gray-500
+              hover:bg-gray-100 hover:text-gray-800
+              transition
+            "
           >
-            ✕
+            <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-6 pt-1">{children}</div>
+
+        <div className="px-5 py-4 overflow-y-auto max-h-[calc(90vh-64px)]">
+          {children}
+        </div>
       </div>
     </div>
   );
